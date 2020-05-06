@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2Role
+
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group of EC2
+      VpcId: !ImportValue VPCID
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 32678
+          ToPort: 65535
+          SourceSecurityGroupId: !ImportValue LoadBalancerSecGroupId
+
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: ['sts:AssumeRole']
+            Effect: Allow
+            Principal:
+              Service: ['ec2.amazonaws.com']
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        
+  AutoScalingPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AutoScalingGroup
+      PolicyType: TargetTrackingScaling
+      TargetTrackingConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ASGAverageCPUUtilization
+        TargetValue: 70
+
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              amazon-ssm-agent: []
+          commands:
+            00_amazon_ssm_agent_start:
+              command: systemctl start amazon-ssm-agent
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content: |
+                  [main]
+                  stack=${AWS::StackId}
+                  region=${AWS::Region}
+                  interval=1
+              mode: "000400"
+              owner: root
+              group: root
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: |
+                  [cfn-auto-reloader-hook]
+                  triggers=post.update
+                  path=Resources.LaunchTemplate.Metadata.AWS::CloudFormation::Init
+                  action=/opt/aws/bin/cfn-init --verbose --stack=${AWS::StackName} --region=${AWS::Region} --resource=LaunchTemplate
+                  runas=root
+          services:
+            sysvinit:
+              cfn-hup:
+                enabled: true
+                ensureRunning: true
+                files:
+                  - "/etc/cfn/cfn-hup.conf"
+                  - "/etc/cfn/hooks.d/cfn-auto-reloader.conf"
+    Properties: 
+      LaunchTemplateData: 
+        CreditSpecification: 
+          CpuCredits: Unlimited
+        ImageId: 'ami-09266271a2521d06f' #ecs optimised image for eu-west-1
+        InstanceType: t2.micro 
+        IamInstanceProfile:
+          Arn: !GetAtt InstanceProfile.Arn
+        Monitoring: 
+          Enabled: true
+        SecurityGroupIds: 
+          - !Ref EC2SecurityGroup
+        UserData:
+          Fn::Base64:
+            Fn::Sub: 
+              - |
+                  #!/bin/bash -xe
+                  yum update -y
+                  yum install -y aws-cli aws-cfn-bootstrap
+                  echo ECS_CLUSTER=${Cluster} >> /etc/ecs/ecs.config
+                  echo ECS_ENABLE_SPOT_INSTANCE_DRAINING=1 >> /etc/ecs/ecs.config
+                  # -r needs to be name of the LaunchTemplate resource. In this case: LaunchTemplate
+                  /opt/aws/bin/cfn-init -v -s ${AWS::StackName} -r LaunchTemplate --region ${AWS::Region}
+              - { Cluster: !ImportValue ECSCluster }
+
+  AutoScalingGroup: 
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MinSize: "1"
+      MaxSize: "2"
+      DesiredCapacity: "2"
+      HealthCheckGracePeriod: 300 
+      MixedInstancesPolicy:
+        InstancesDistribution:
+          OnDemandBaseCapacity: 1
+          OnDemandPercentageAboveBaseCapacity: 0
+          SpotAllocationStrategy: capacity-optimized
+        LaunchTemplate:
+          LaunchTemplateSpecification: 
+            LaunchTemplateId: !Ref LaunchTemplate
+            Version: !GetAtt LaunchTemplate.LatestVersionNumber
+          Overrides:
+            - InstanceType: t3.micro
+            - InstanceType: t3a.micro	
+            - InstanceType: t2.micro
+      VPCZoneIdentifier:
+        - !ImportValue PrivateSubnetA
+        - !ImportValue PrivateSubnetB
+
+
+  
+      

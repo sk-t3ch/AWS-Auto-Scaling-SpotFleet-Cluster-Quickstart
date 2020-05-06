@@ -1,0 +1,126 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 5000
+      Protocol: HTTP
+      VpcId: !ImportValue VPCID
+      HealthCheckIntervalSeconds: 60
+      HealthCheckTimeoutSeconds: 5
+      UnhealthyThresholdCount: 5
+      HealthCheckPath: /healthcheck
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 2
+
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+      LoadBalancerArn: !ImportValue LoadBalancerArn
+      Port: 80
+      Protocol: HTTP
+      
+  ListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - '*'
+      ListenerArn: !Ref LoadBalancerListener
+      Priority: 1
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: AppTaskDefinition
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ExecutionRoleArn: !ImportValue ExecutionRoleArn
+      Memory: 0.5Gb
+      Cpu: 256
+      ContainerDefinitions:
+        - Name: ServiceContainer
+          PortMappings:
+            - ContainerPort: 5000
+          Essential: true
+          Image: 855097409413.dkr.ecr.eu-west-1.amazonaws.com/ecs-ecrrepo-1ftybt4hlqfb4:latest
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - ListenerRule
+    Properties:
+      Cluster: !ImportValue ECSCluster
+      LaunchType: EC2
+      DesiredCount: 2
+      LoadBalancers:
+        - ContainerName: ServiceContainer
+          ContainerPort: 5000
+          TargetGroupArn: !Ref TargetGroup
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 100
+        MaximumPercent: 300
+      HealthCheckGracePeriodSeconds: 30
+      TaskDefinition: !Ref TaskDefinition
+        
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/ecs/aiohttp
+      RetentionInDays: 7
+
+  AutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 3
+      MinCapacity: 2
+      ResourceId: !Join ["/", [service, !ImportValue ECSCluster, !GetAtt Service.Name]]
+      RoleARN: !ImportValue ECSServiceAutoScalingRoleArn
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  AutoScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: ServiceAutoScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref AutoScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        ScaleInCooldown: 10
+        ScaleOutCooldown: 10
+        TargetValue: 70
