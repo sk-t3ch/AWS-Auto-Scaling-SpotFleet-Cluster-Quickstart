@@ -17,7 +17,7 @@ async def helloworld(_):
 app = web.Application()
 cors = aiohttp_cors.setup(app)
 app.router.add_get("/healthcheck", healthcheck)
-app.router.add_get("/service", helloworld)
+app.router.add_get("/", helloworld)
 
 cors = aiohttp_cors.setup(app, defaults={
     "*": aiohttp_cors.ResourceOptions(
