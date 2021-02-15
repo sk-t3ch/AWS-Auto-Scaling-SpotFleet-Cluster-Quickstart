@@ -29,3 +29,9 @@
 1. Deploy Service
     * Update template with your Docker image
     * `aws cloudformation create-stack --stack-name service --template-body file://aws/04_service.yml --capabilities CAPABILITY_NAMED_IAM`
+
+---
+
+This project was created by [T3chFlicks](https://t3chflicks.org) a tech focused education and service company.
+
+---
