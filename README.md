@@ -32,6 +32,6 @@
 
 ---
 
-This project was created by [T3chFlicks](https://t3chflicks.org) a tech focused education and service company.
+This project was created by [T3chFlicks](https://t3chflicks.org) - A tech focused education and services company.
 
 ---
