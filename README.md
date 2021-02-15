@@ -1,4 +1,4 @@
-# AWS Auto Scaling Spot Fleet Cluster Quickstart
+# [T3chFlicks](https://t3chflicks.org): AWS Auto Scaling Spot Fleet Cluster Quickstart
 > Quickstart for running an example dockerised Python web server on AWS with an autoscaling group spot instances.
 
 ### Read The Blog Post ([github](./blog_post.md)/[medium](https://medium.com/@t3chflicks/aws-auto-scaling-spot-fleet-cluster-quickstart-with-cloudformation-6504a61f7aab)).
