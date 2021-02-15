@@ -43,15 +43,15 @@ To deploy this system, I am using the AWS CLI with CloudFormation. It is as simp
 
 The deployment is split into five templates:
 
-* `vpc.yml` — Configures the VPC.
+* `vpc.yml`
 
-* `load_balancer.yml` — code
+* `load_balancer.yml` 
 
-* `cluster.yml` — code
+* `cluster.yml`
 
-* `machines.yml` — code
+* `machines.yml`
 
-* `service.yml` — code
+* `service.yml`
 
 ## Let’s Build! 🔩
 
