@@ -1,12 +1,18 @@
-# Example Service with AWS Auto Scaling Spot Fleet Cluster
+# AWS Auto Scaling Spot Fleet Cluster Quickstart
+> Quickstart for running an example dockerised Python web server on AWS with an autoscaling group spot instances.
 
-Example of running an auto scaling Python web server using CloudFormation
-* The blog post can be found [here](https://medium.com/@t3chflicks/aws-auto-scaling-spot-fleet-cluster-quickstart-with-cloudformation-6504a61f7aab).
+### Read The Blog Post ([github](./blog_post.md)/[medium](https://medium.com/@t3chflicks/aws-auto-scaling-spot-fleet-cluster-quickstart-with-cloudformation-6504a61f7aab)).
 
-![architecture](./architecture.png)
-![example usage](./example_usage.png)
+---
 
-# Step By Step Deployment
+
+## Architecture 
+> ![architecture](./architecture.png)
+
+## Example Usage
+> ![example usage](./example_usage.png)
+
+## Step By Step Deployment
 1. Deploy VPC
     * `aws cloudformation create-stack --stack-name vpc --template-body file://aws/00_vpc.yml --capabilities CAPABILITY_NAMED_IAM`
     * tutorial for VPC can be found [here](https://medium.com/@t3chflicks/virtual-private-cloud-on-aws-quickstart-with-cloudformation-4583109b2433)
@@ -23,6 +29,3 @@ Example of running an auto scaling Python web server using CloudFormation
 1. Deploy Service
     * Update template with your Docker image
     * `aws cloudformation create-stack --stack-name service --template-body file://aws/04_service.yml --capabilities CAPABILITY_NAMED_IAM`
-
-# Gotchas
-* Login to AWS ECR `aws ecr get-login --registry-ids your_registry_id` and use this response for Docker login.
