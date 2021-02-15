@@ -156,8 +156,8 @@ Scaling up and down with demand requires more than one machine in the autoscalin
 * SSM for keyless SSH access and patching
 
 * User Data script joins the machine to the ECS cluster
-
-
+>
+    
     LaunchTemplate:
         Type: AWS::EC2::LaunchTemplate
         Metadata:
